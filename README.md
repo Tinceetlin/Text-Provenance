@@ -57,25 +57,6 @@ All values come from the per-text mean of five Z.AI-class confidence scores, thr
 
 Across all 4,000 texts, 3,768 had 5:0 agreement, 68 had a 4:1 split, and 164 had a 3:2 split.
 
-### Figures
-
-<p align="center">
-  <img src="figures/roc_curves.png" alt="ROC curves across the three transformation conditions" width="720"><br>
-  <em>ROC curves for the three scenarios (AUC 0.9266, 0.9472, 0.9952).</em>
-</p>
-
-<p align="center">
-  <img src="figures/reliability_diagram.png" alt="Reliability diagram for the three datasets" width="560"><br>
-  <em>Reliability diagram: mean verbalized Z.AI-class confidence against the observed fraction of Z.AI-involved texts.</em>
-</p>
-
-## Study design
-
-<p align="center">
-  <img src="figures/workflow.png" alt="Experimental design and workflow" width="900"><br>
-  <em>Experimental design: data source, abstract transformation, scenario testing, repeated-judgment protocol, validation and evaluation.</em>
-</p>
-
 ### 1. Data selection
 
 Records from the arXiv Paper Abstracts dataset were filtered to English-language Computer Science abstracts archived on or before 30 September 2021 (54,230 eligible records). They were processed in dataset order, with no random sampling, until 1,000 complete source families were retained. Source abstracts were excluded and replaced by the next eligible record when a transformation or classification response failed validation (152 in total).
@@ -168,9 +149,9 @@ Two identifiers link the records: `source_id` ties each human control to its Gen
 If you use this repository, please cite it as:
 
 ```bibtex
-@misc{sir2026zhipu_self_detector,
+@misc{sir2026,
   author       = {Sir, Yosua Alberth and Tallo, Tince Etlin},
-  title        = {Zhipu\_AI\_Self-Detector},
+  title        = {{Text-Provenance}},
   year         = {2026},
   version      = {1.0.0},
   howpublished = {GitHub},
