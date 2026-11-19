@@ -1,135 +1,186 @@
-## Highlights (key findings)
+# Black-Box Provenance Self-Detection for Zhipu AI (GLM-5.2)
 
-GLM-5.2 (Z.AI), queried as a black box with a fixed prompt, had to separate 1,000 human-written abstracts from 1,000 Z.AI variants per condition. The Z.AI-class score is the mean of five within-response judgments; the decision threshold is 0.5. 95% CIs are percentile intervals from 10,000 source-family bootstrap replicates.
+**Black-Box Detection of Z.AI-Generated and Modified Academic Abstracts Against Human-Written Controls: Discrimination, Calibration, and Repeatability of GLM-5.2 Verbalized Confidence**
 
-| Condition (vs. same 1,000 controls) | Accuracy (95% CI) | F1 (AI class) | ROC-AUC (95% CI) | Brier Score (95% CI) | ECE, 10 bins (95% CI) | False-negative rate |
-|---|---|---|---|---|---|---|
-| Generate | 97.55% (96.85–98.20) | 97.58% | 0.9952 (0.9926–0.9973) | 0.0354 (0.0319–0.0390) | 0.1019 (0.0955–0.1087) | 1.30% |
-| Rewrite | 89.10% (87.80–90.35) | 88.24% | 0.9472 (0.9372–0.9566) | 0.0920 (0.0850–0.0993) | 0.0781 (0.0685–0.0904) | 18.20% |
-| Paraphrase | 85.60% (84.20–87.00) | 83.86% | 0.9266 (0.9155–0.9372) | 0.1147 (0.1066–0.1230) | 0.0828 (0.0742–0.0948) | 25.20% |
+This repository accompanies the paper above. It contains the prompts, the data, and the statistical analyses used to test how well **GLM-5.2 (Z.AI)** can tell human-written academic abstracts apart from abstracts that it generated, rewrote, or paraphrased, using only black-box API access (no weights, hidden activations, or logits).
 
-False-positive rate on the human controls: 3.60% (36/1,000), identical in all three scenarios because the same controls are reused.
+> **Responsible use.** Provenance scores from an LLM are decision-support evidence for screening, not proof of authorship. The results describe one model, one prompt, and one API configuration, and should not be used as definitive evidence that a person used AI.
 
-**What the numbers say**
+## Overview
 
-- **Detection depends on the manipulation.** Accuracy differs across the three scenarios (Cochran's Q = 248.17, df = 2, p < 0.005). All pairwise McNemar tests with Holm correction are significant: Generate vs. Rewrite χ² = 154.229508 (p_Holm = 4.126696 × 10⁻³⁵); Generate vs. Paraphrase χ² = 218.702703 (p_Holm = 5.205737 × 10⁻⁴⁹); Rewrite vs. Paraphrase χ² = 16.531250 (p_Holm = 4.785484 × 10⁻⁵).
-- **Best discrimination is not best calibration.** Generate has the highest ROC-AUC and lowest Brier Score but the highest ECE. Paired ΔECE (Holm-adjusted): Generate − Rewrite = 0.0237 (95% CI 0.0107–0.0345, p < 0.001); Generate − Paraphrase = 0.0190 (0.0059–0.0292, p = 0.003); Rewrite − Paraphrase = −0.0047 (−0.0184 to 0.0083, p = 0.548, not significant). The Rewrite/Paraphrase ECE ordering flips across 5/10/15/20 bins, while Generate has the highest ECE under all four.
-- **Repeatability differs by condition.** Five-way label agreement (5:0): Generate 98.20%, Rewrite 92.60%, Paraphrase 90.10%, human controls 95.90%. Median between-judgment score SD: 1.71, 2.58, 2.70 and 2.14 percentage points, respectively. Friedman tests across the three scenarios: confidence χ² = 571.095 and score SD χ² = 340.337 (df = 2, both p < 0.001).
-- **Agreement is not correctness.** 88.10% of missed Paraphrase texts (222/252) and 66.67% of false-positive controls (24/36) received the same wrong label in all five judgments.
-
-## Types of text manipulation
-
-Three manipulations, each applied by GLM-5.2 itself to every source abstract (K = 3). Prompts are in `Prompt_engineering/`.
-
-| Condition | What was done | Input to Z.AI |
-|---|---|---|
-| **Generate** | A new abstract written from the paper title only (maximum 300 words). | Title |
-| **Rewrite** | Complete rewrite in a new linguistic style while keeping all numbers, metrics and facts; clichéd AI phrasing to be avoided. | Source abstract |
-| **Paraphrase** | Copy-editing style paraphrase that changes wording and sentence structure while keeping technical content. | Source abstract |
-
-Not tested: summarization, translation, character- or token-level perturbation, third-party "humanizer" tools, cascaded/repeated manipulations, or text from any LLM other than GLM-5.2.
-
-## Dataset
-
-| Item | Value |
+| | |
 |---|---|
-| Source corpus | *arXiv Paper Abstracts* (Paul & Rakshit, Kaggle) |
-| Eligibility | English, Computer Science, archived on or before September 30, 2021 (54,230 eligible abstracts) |
-| Selection | First 1,000 complete source families in dataset order; no random sampling, so no sampling seed. 152 sources were excluded for failed transformation or classification validation and replaced by the next record |
-| N (source abstracts) | 1,000 |
-| K (manipulation types) | 3 (Generate, Rewrite, Paraphrase) |
-| Texts | 4,000 = 1,000 human controls + 3 × 1,000 Z.AI variants |
-| R (repeats) | 5 judgments per text, produced within one API response (not five separate calls) |
-| Judgment-level outputs | 20,000 (4,000 requests × 5) |
-| Labels | Binary: `non-Z.AI` (human control, 0) and `Z.AI` (generated/modified, 1; positive class). Each judgment is JSON with `run`, `prediction`, `confidence_non-zai`, `confidence_zai` (four decimals, summing to 1.000 ± 0.001) and `reason`. `text_id` groups the five judgments of a text; `source_id` links a control to its three variants |
+| **Model under test** | GLM-5.2 (Z.AI), API model identifier `glm-5.2` |
+| **Task** | Classify an abstract as `non-Z.AI` (human control) or `Z.AI` (generated or modified by Z.AI) |
+| **Source corpus** | 1,000 English Computer Science abstracts archived on or before 30 September 2021, from the [arXiv Paper Abstracts](https://www.kaggle.com/datasets/spsayakpaul/arxiv-paper-abstracts) dataset (Kaggle) |
+| **Test set** | 4,000 texts: 1,000 human controls plus 1,000 Generate, 1,000 Rewrite, and 1,000 Paraphrase variants |
+| **Judgments** | 4,000 requests, each eliciting 5 judgments, giving 20,000 judgment-level outputs |
+| **Outputs per judgment** | Predicted class and verbalized confidence scores for both classes |
 
-Files in `dataset/`: `tbl_transformations.xlsx` (1,000 controls + 3,000 variants), `evaluation_result.xlsx` (20,000 judgments), `classification_result.xlsx` (4,000 texts aggregated from the 20,000 judgments).
+The study asks three questions:
 
-## Reproducibility
+1. **RQ1.** How well can GLM-5.2 separate human-written abstracts from Z.AI-generated, rewritten, and paraphrased ones?
+2. **RQ2.** How good are its verbalized confidence scores (ROC-AUC, Brier Score, calibration)?
+3. **RQ3.** How stable are its scores and labels across five judgments of the same text?
 
-| Item | Value |
+## Key results
+
+All values come from the per-text mean of five Z.AI-class confidence scores, thresholded at 0.5 (an exact 0.5 is assigned to Z.AI). Each scenario pairs the same 1,000 human controls with 1,000 variants. Values in parentheses are 95% percentile CIs from 10,000 source-family bootstrap replicates.
+
+| Metric | Control vs Paraphrase | Control vs Rewrite | Control vs Generate |
+|---|---|---|---|
+| ROC-AUC | 0.9266 (0.9155–0.9372) | 0.9472 (0.9372–0.9566) | **0.9952** (0.9926–0.9973) |
+| Accuracy | 85.60% (84.20–87.00) | 89.10% (87.80–90.35) | **97.55%** (96.85–98.20) |
+| Precision (Z.AI) | 95.41% | 95.78% | 96.48% |
+| Recall (Z.AI) | 74.80% | 81.80% | 98.70% |
+| F1-score (Z.AI) | 83.86% | 88.24% | 97.58% |
+| Brier Score (lower is better) | 0.1147 (0.1066–0.1230) | 0.0920 (0.0850–0.0993) | **0.0354** (0.0319–0.0390) |
+| ECE, 10 bins (lower is better) | 0.0828 (0.0742–0.0948) | **0.0781** (0.0685–0.0904) | 0.1019 (0.0955–0.1087) |
+| False-negative rate | 25.20% | 18.20% | 1.30% |
+| False-positive rate | 3.60% | 3.60% | 3.60% |
+
+**What stands out**
+
+- **Detection weakens as the transformation gets subtler.** Accuracy falls from Generate (97.55%) to Rewrite (89.10%) to Paraphrase (85.60%). The differences are significant (Cochran's Q = 248.17, df = 2, p < 0.001), and all three McNemar–Holm pairwise comparisons are significant. One in four paraphrased abstracts (25.20%) was missed.
+- **Good discrimination is not good calibration.** Generate has the best ROC-AUC and Brier Score but the highest ECE. Rewrite and Paraphrase do not differ significantly in ECE (ΔECE = −0.0047, Holm-adjusted p = 0.548), and their ordering flips across 5, 10, 15, and 20 bins.
+- **Stable is not the same as correct.** 222 of 252 missed Paraphrase texts (88.10%) received the same wrong label in all five judgments. Unanimity should not be read as correctness.
+- **Human false positives are consistent.** The same 36 human controls (3.60%) were flagged as Z.AI in every scenario.
+
+### Repeatability across five judgments
+
+| Group | Texts | Mean Z.AI-class score | Median between-judgment SD (pp) | Full 5:0 agreement | Mean label entropy (bits) |
+|---|---|---|---|---|---|
+| Non-Z.AI control | 1,000 | 16.82% | 2.14 | 95.90% | 0.03682 |
+| Z.AI-Generate | 1,000 | 89.82% | 1.71 | 98.20% | 0.01648 |
+| Z.AI-Rewrite | 1,000 | 73.01% | 2.58 | 92.60% | 0.06587 |
+| Z.AI-Paraphrase | 1,000 | 67.74% | 2.70 | 90.10% | 0.08915 |
+
+Across all 4,000 texts, 3,768 had 5:0 agreement, 68 had a 4:1 split, and 164 had a 3:2 split.
+
+### Figures
+
+<p align="center">
+  <img src="figures/roc_curves.png" alt="ROC curves across the three transformation conditions" width="720"><br>
+  <em>ROC curves for the three scenarios (AUC 0.9266, 0.9472, 0.9952).</em>
+</p>
+
+<p align="center">
+  <img src="figures/reliability_diagram.png" alt="Reliability diagram for the three datasets" width="560"><br>
+  <em>Reliability diagram: mean verbalized Z.AI-class confidence against the observed fraction of Z.AI-involved texts.</em>
+</p>
+
+## Study design
+
+<p align="center">
+  <img src="figures/workflow.png" alt="Experimental design and workflow" width="900"><br>
+  <em>Experimental design: data source, abstract transformation, scenario testing, repeated-judgment protocol, validation and evaluation.</em>
+</p>
+
+### 1. Data selection
+
+Records from the arXiv Paper Abstracts dataset were filtered to English-language Computer Science abstracts archived on or before 30 September 2021 (54,230 eligible records). They were processed in dataset order, with no random sampling, until 1,000 complete source families were retained. Source abstracts were excluded and replaced by the next eligible record when a transformation or classification response failed validation (152 in total).
+
+### 2. Abstract transformation
+
+Each human abstract (the control) was converted into three variants by GLM-5.2:
+
+| Variant | What the model did |
 |---|---|
-| Model / endpoint | `glm-5.2` via `https://api.z.ai/api/paas/v4/chat/completions` |
-| API snapshot date | All transformation and classification calls were made between **July 22 and August 16, 2026**. No immutable model snapshot or build identifier was recorded |
-| Parameters | temperature 0.0; thinking type enabled; reasoning_effort max |
-| Context isolation | Each abstract in a fresh request: current prompt plus abstract only, no history |
-| Aggregation | Per-text mean of the five `confidence_zai` values; decision threshold 0.5 (≥ 0.5 → Z.AI) |
-| Statistics | 10,000 source-family bootstrap replicates (95% percentile CIs); 10,000 paired randomization replicates for ECE differences; Holm correction; Cochran's Q, McNemar (Yates), Friedman |
-| Python version | **[FILL IN: output of `python --version`]** |
-| Zhipu/Z.AI SDK or HTTP client + version | **[FILL IN: e.g., output of `pip show <package>`; the paper reports only the REST endpoint]** |
-| Random seeds | None for source selection (sequential). Bootstrap/randomization seed: **[FILL IN from code, or state "not set"]** |
-| Number of API requests | At least 7,000 successful (3,000 transformations + 4,000 classifications), plus requests for the 152 excluded sources (count not reported) |
-| Cost and wall-clock time | **[FILL IN from Z.AI billing/usage log and run logs]** |
+| **Z.AI-Generate** | Wrote a new abstract from the original **title only** |
+| **Z.AI-Rewrite** | Comprehensively rewrote the abstract in a different style while preserving the core content |
+| **Z.AI-Paraphrase** | Altered wording and phrasing to mask the human author's stylistic signatures |
 
-Because GLM-5.2 is a hosted commercial model, re-running the API calls may not reproduce the released outputs exactly. The released spreadsheets are the reference data for the paper's numbers.
+### 3. Scenarios
 
-## Quickstart
+The same 1,000 controls are paired with each variant set, giving three binary scenarios of 2,000 texts each (4,000 unique texts in total). Because the controls are reused, the three scenarios are not independent control samples. Each scenario is 50% positive, whereas the full collection is 75% Z.AI variants.
 
-```bash
-git clone https://github.com/Tinceetlin/Zhipu_AI_Self-Detector.git
-cd Zhipu_AI_Self-Detector
-python -m venv .venv && source .venv/bin/activate
-pip install pandas openpyxl
-python - <<'EOF'
-import pandas as pd
-for f, n in [("dataset/tbl_transformations.xlsx", 4000), ("dataset/evaluation_result.xlsx", 20000), ("dataset/classification_result.xlsx", 4000)]:
-    df = pd.read_excel(f); print(f, df.shape, "OK" if len(df) == n else "MISMATCH", list(df.columns))
-EOF
+### 4. Context-isolated repeated-judgment protocol
+
+Each abstract is sent in a fresh API request containing only the classification prompt and that abstract, with no conversation history. One response contains **five judgments** (not five separate API calls), each with a predicted class and two verbalized confidence scores that sum to 1. Responses are validated against the required JSON structure.
+
+```json
+{
+  "run": 1,
+  "prediction": "non-Z.AI or Z.AI",
+  "confidence_non-zai": 0.0000,
+  "confidence_zai": 0.0000,
+  "reason": "<maximum 300 words>"
+}
 ```
 
-This checks the file sizes stated above (4,000 / 20,000 / 4,000 rows) and prints the column names. **[FILL IN: add one command that recomputes the Table 4 metrics once the metric script is in the repository.]**
+The five Z.AI-class scores are averaged into one **Mean Verbalized Confidence Score** per text. A mean of 0.5 or higher gives a `Z.AI` prediction. Z.AI is the positive class.
 
-## Known limitations
+### 5. Model configuration
 
-- **One model only.** Only GLM-5.2 (Z.AI) was evaluated; results do not transfer to other models.
-- **Black-box protocol.** Only labels and verbalized confidence were used; no logits, weights or hidden activations. The results are not evidence of an internal self-recognition mechanism.
-- **Snapshot may change.** The hosted API can change; no immutable snapshot ID was recorded (collection window July 22 to August 16, 2026).
-- **Human-only negatives.** The negative class has no outputs from other LLMs, so the study cannot separate Z.AI-specific recognition from sensitivity to generic LLM cues.
-- **Scope.** English Computer Science abstracts, one prompt and one API configuration. Prompt wording and API settings were not varied.
-- **Limited repeatability window.** Five judgments come from a single response; they do not show long-term stability.
-- **Selection and reuse.** 152 sources were excluded for processing failures (possible selection effect, not quantified). The same 1,000 controls appear in all three scenarios, and the 2021 cutoff does not rule out overlap with the model's training data.
-- **No same-data baseline.** No other detector or LLM judge was run on these 4,000 texts.
-
-## Ethics statement
-
-- **Not proof of authorship.** Scores are decision-support evidence for preliminary screening only. Do not use them as the sole basis for an academic-integrity decision. On human-written abstracts the false-positive rate was 3.60%, and the Paraphrase condition missed 25.20% of Z.AI-modified texts.
-- **What is released.** Study data, prompts and statistical outputs for replication. No trained classifier, model weights or ready-to-use detection application. `self-detection_prompt.txt` is the verbatim prompt used in the experiment.
-- **Dual-use materials.** The Rewrite and Paraphrase prompts were written to alter wording and style (for example, to avoid stock AI phrasing and to lower similarity scores). They are released to document the experiment and must not be used to disguise AI involvement where disclosure is required.
-- **Data.** Human abstracts come from a public arXiv-derived dataset; no private or personal data were collected.
-- **AI assistance.** The authors report using ChatGPT for literature-candidate identification, reference checking, language editing and paraphrasing of manuscript text, and take responsibility for the content.
-
-## Licenses
-
-| Component | License |
+| Parameter | Value |
 |---|---|
-| Code and scripts | MIT (`LICENSE`) |
-| Dataset (`dataset/`) | **[DECIDE: CC-BY-4.0 or CC-BY-NC-4.0 (`LICENSE-DATA`); confirm the terms of the Kaggle source dataset and Z.AI output terms first]** |
+| Endpoint | `https://api.z.ai/api/paas/v4/chat/completions` |
+| API model identifier | `glm-5.2` |
+| Temperature | `0.0` |
+| Thinking | Enabled |
+| Reasoning effort | Max |
+| Call period | 22 July to 16 August 2026 |
 
-## How to cite
+No immutable model snapshot or build identifier was recorded, so results reflect the hosted service during that period.
 
-Cite the paper once it is published; until then cite the archived release.
+### 6. Metrics and statistics
+
+- **Classification:** Accuracy, Precision, Recall, F1-score, with Z.AI as the positive class.
+- **Discrimination and probability quality:** ROC-AUC and Brier Score on the per-text mean score.
+- **Calibration:** Expected Calibration Error with 10 equal-width bins (sensitivity checked with 5, 15, and 20 bins) and reliability diagrams.
+- **Repeatability:** Between-judgment score standard deviation, label entropy, and label-agreement patterns (5:0, 4:1, 3:2).
+- **Inference:**
+  - 10,000 source-family bootstrap replicates for 95% CIs.
+  - Paired randomization tests on ECE differences, Holm-adjusted.
+  - Cochran's Q, then McNemar tests with Yates' correction and Holm adjustment, for accuracy across conditions.
+  - Friedman tests for confidence scores and between-judgment SD.
+
+## Repository structure
+
+```text
+Zhipu_AI_Self-Detector/
+├── Prompt_engineering/   # Prompts for Generate, Rewrite, Paraphrase, and provenance classification
+├── dataset/              # Human control abstracts, Z.AI variants, and classification results
+├── statistical_test/     # Statistical analyses (calibration, bootstrap, Cochran's Q, McNemar, Friedman)
+├── figures/              # Figures shown in this README
+└── README.md
+```
+
+Two identifiers link the records: `source_id` ties each human control to its Generate, Rewrite, and Paraphrase variants, and `text_id` groups the five judgments made for one text.
+
+## Limitations
+
+- **One model, one setup.** The study covers GLM-5.2 on English Computer Science abstracts under one prompt and one API configuration. Results should not be generalized without re-evaluation.
+- **No other-LLM controls.** The negative class contains only human-written text. The results cannot separate Z.AI-specific self-recognition from sensitivity to generic LLM-style cues.
+- **Possible training-data overlap.** The September 2021 cutoff defines eligibility but does not guarantee independence from the model's training data.
+- **Prevalence and control reuse.** Scenario-level metrics assume 50% prevalence, and the controls are shared across scenarios.
+- **Replacement of failed records.** The 152 replaced records were substituted sequentially, not randomly, and the effect on corpus composition was not quantified.
+- **Limited repeatability view.** Five judgments within one response do not capture long-term stability under future service changes.
+- **No same-data baseline.** No alternative detector or LLM judge was run on the same 4,000 texts, so comparisons with prior work are contextual, not a controlled ranking.
+
+## Data and attribution
+
+- Source abstracts: S. Paul and S. Rakshit, [arXiv Paper Abstracts](https://www.kaggle.com/datasets/spsayakpaul/arxiv-paper-abstracts), Kaggle, 2021. Please follow the terms of the original dataset when reusing the human-written abstracts.
+- Model documentation: [GLM-5.2, Z.AI Developer Documentation](https://docs.z.ai/guides/llm/glm-5.2).
+
+## Citation
+
+If you use this repository, please cite it as:
 
 ```bibtex
-@article{sir2026blackbox,
-  title     = {Black-Box Detection of {Z.AI}-Generated and Modified Academic Abstracts Against Human-Written Controls: Discrimination, Calibration, and Repeatability of {GLM-5.2} Verbalized Confidence},
-  author    = {Sir, Yosua Alberth and Tallo, Tince Etlin},
-  journal   = {Jurnal ELTIKOM: Jurnal Teknik Elektro, Teknologi Informasi dan Komputer},
-  volume    = {FILL IN},
-  number    = {FILL IN},
-  pages     = {FILL IN},
-  year      = {2026},
-  publisher = {P3M Politeknik Negeri Banjarmasin},
-  issn      = {2598-3288},
-  doi       = {FILL IN}
-}
-
-@software{sir2026zhipu_self_detector,
-  title     = {Zhipu\_AI\_Self-Detector: Replication package for black-box detection of {Z.AI}-generated and modified academic abstracts},
-  author    = {Sir, Yosua Alberth and Tallo, Tince Etlin},
-  year      = {2026},
-  version   = {v1.0.0},
-  publisher = {Zenodo},
-  doi       = {FILL IN},
-  url       = {https://github.com/Tinceetlin/Zhipu_AI_Self-Detector}
+@misc{sir2026zhipu_self_detector,
+  author       = {Sir, Yosua Alberth and Tallo, Tince Etlin},
+  title        = {Zhipu\_AI\_Self-Detector},
+  year         = {2026},
+  version      = {1.0.0},
+  howpublished = {GitHub},
+  url          = {https://github.com/Tinceetlin/Zhipu_AI_Self-Detector}
 }
 ```
+
+The accompanying paper is *Black-Box Detection of Z.AI-Generated and Modified Academic Abstracts Against Human-Written Controls: Discrimination, Calibration, and Repeatability of GLM-5.2 Verbalized Confidence* (Y. A. Sir and T. E. Tallo). Volume, issue, and DOI will be added once published.
+
+## Authors
+
+- **Yosua Alberth Sir**: Department of Information Technology Education, Universitas Nusa Cendana, Kupang, Indonesia. [yosuasir@staf.undana.ac.id](mailto:yosuasir@staf.undana.ac.id)
+- **Tince Etlin Tallo**: Department of Computer Science, Universitas Nusa Cendana, Kupang, Indonesia. [tince.tallo@staf.undana.ac.id](mailto:tince.tallo@staf.undana.ac.id)
