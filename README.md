@@ -14,7 +14,7 @@ This repository accompanies the paper above. It contains the prompts, the data, 
 | **Task** | Classify an abstract as `non-Z.AI` (human control) or `Z.AI` (generated or modified by Z.AI) |
 | **Source corpus** | 1,000 English Computer Science abstracts archived on or before 30 September 2021, from the [arXiv Paper Abstracts](https://www.kaggle.com/datasets/spsayakpaul/arxiv-paper-abstracts) dataset (Kaggle) |
 | **Test set** | 4,000 texts: 1,000 human controls plus 1,000 Generate, 1,000 Rewrite, and 1,000 Paraphrase variants |
-| **Judgments** | 4,000 requests, each eliciting 5 judgments, giving 20,000 judgment-level outputs |
+| **Judgements** | 4,000 requests, each eliciting 5 judgments, giving 20,000 judgement-level outputs |
 | **Outputs per judgment** | Predicted class and verbalized confidence scores for both classes |
 
 The study asks three questions:
