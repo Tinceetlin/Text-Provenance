@@ -21,7 +21,7 @@ The study asks three questions:
 
 1. **RQ1.** How well can GLM-5.2 separate human-written abstracts from Z.AI-generated, rewritten, and paraphrased ones?
 2. **RQ2.** How good are its verbalized confidence scores (ROC-AUC, Brier Score, calibration)?
-3. **RQ3.** How stable are its scores and labels across five judgments of the same text?
+3. **RQ3.** How stable are its scores and labels across five judgements of the same text?
 
 ## Key results
 
@@ -43,12 +43,12 @@ All values come from the per-text mean of five Z.AI-class confidence scores, thr
 
 - **Detection weakens as the transformation gets subtler.** Accuracy falls from Generate (97.55%) to Rewrite (89.10%) to Paraphrase (85.60%). The differences are significant (Cochran's Q = 248.17, df = 2, p < 0.001), and all three McNemar–Holm pairwise comparisons are significant. One in four paraphrased abstracts (25.20%) was missed.
 - **Good discrimination is not good calibration.** Generate has the best ROC-AUC and Brier Score but the highest ECE. Rewrite and Paraphrase do not differ significantly in ECE (ΔECE = −0.0047, Holm-adjusted p = 0.548), and their ordering flips across 5, 10, 15, and 20 bins.
-- **Stable is not the same as correct.** 222 of 252 missed Paraphrase texts (88.10%) received the same wrong label in all five judgments. Unanimity should not be read as correctness.
+- **Stable is not the same as correct.** 222 of 252 missed Paraphrase texts (88.10%) received the same wrong label in all five judgements. Unanimity should not be read as correctness.
 - **Human false positives are consistent.** The same 36 human controls (3.60%) were flagged as Z.AI in every scenario.
 
-### Repeatability across five judgments
+### Repeatability across five judgements
 
-| Group | Texts | Mean Z.AI-class score | Median between-judgment SD (pp) | Full 5:0 agreement | Mean label entropy (bits) |
+| Group | Texts | Mean Z.AI-class score | Median between-judgement SD (pp) | Full 5:0 agreement | Mean label entropy (bits) |
 |---|---|---|---|---|---|
 | Non-Z.AI control | 1,000 | 16.82% | 2.14 | 95.90% | 0.03682 |
 | Z.AI-Generate | 1,000 | 89.82% | 1.71 | 98.20% | 0.01648 |
@@ -75,9 +75,9 @@ Each human abstract (the control) was converted into three variants by GLM-5.2:
 
 The same 1,000 controls are paired with each variant set, giving three binary scenarios of 2,000 texts each (4,000 unique texts in total). Because the controls are reused, the three scenarios are not independent control samples. Each scenario is 50% positive, whereas the full collection is 75% Z.AI variants.
 
-### 4. Context-isolated repeated-judgment protocol
+### 4. Context-isolated repeated-judgement protocol
 
-Each abstract is sent in a fresh API request containing only the classification prompt and that abstract, with no conversation history. One response contains **five judgments** (not five separate API calls), each with a predicted class and two verbalized confidence scores that sum to 1. Responses are validated against the required JSON structure.
+Each abstract is sent in a fresh API request containing only the classification prompt and that abstract, with no conversation history. One response contains **five judgements** (not five separate API calls), each with a predicted class and two verbalized confidence scores that sum to 1. Responses are validated against the required JSON structure.
 
 ```json
 {
@@ -109,12 +109,12 @@ No immutable model snapshot or build identifier was recorded, so results reflect
 - **Classification:** Accuracy, Precision, Recall, F1-score, with Z.AI as the positive class.
 - **Discrimination and probability quality:** ROC-AUC and Brier Score on the per-text mean score.
 - **Calibration:** Expected Calibration Error with 10 equal-width bins (sensitivity checked with 5, 15, and 20 bins) and reliability diagrams.
-- **Repeatability:** Between-judgment score standard deviation, label entropy, and label-agreement patterns (5:0, 4:1, 3:2).
+- **Repeatability:** Between-judgement score standard deviation, label entropy, and label-agreement patterns (5:0, 4:1, 3:2).
 - **Inference:**
   - 10,000 source-family bootstrap replicates for 95% CIs.
   - Paired randomization tests on ECE differences, Holm-adjusted.
   - Cochran's Q, then McNemar tests with Yates' correction and Holm adjustment, for accuracy across conditions.
-  - Friedman tests for confidence scores and between-judgment SD.
+  - Friedman tests for confidence scores and between-judgement SD.
 
 ## Repository structure
 
@@ -127,7 +127,7 @@ Text-Provenance/
 └── README.md
 ```
 
-Two identifiers link the records: `source_id` ties each human control to its Generate, Rewrite, and Paraphrase variants, and `text_id` groups the five judgments made for one text.
+Two identifiers link the records: `source_id` ties each human control to its Generate, Rewrite, and Paraphrase variants, and `text_id` groups the five judgements made for one text.
 
 ## Limitations
 
@@ -136,7 +136,7 @@ Two identifiers link the records: `source_id` ties each human control to its Gen
 - **Possible training-data overlap.** The September 2021 cutoff defines eligibility but does not guarantee independence from the model's training data.
 - **Prevalence and control reuse.** Scenario-level metrics assume 50% prevalence, and the controls are shared across scenarios.
 - **Replacement of failed records.** The 152 replaced records were substituted sequentially, not randomly, and the effect on corpus composition was not quantified.
-- **Limited repeatability view.** Five judgments within one response do not capture long-term stability under future service changes.
+- **Limited repeatability view.** Five judgements within one response do not capture long-term stability under future service changes.
 - **No same-data baseline.** No alternative detector or LLM judge was run on the same 4,000 texts, so comparisons with prior work are contextual, not a controlled ranking.
 
 ## Data and attribution
