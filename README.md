@@ -1,4 +1,4 @@
-## Black-Box Provenance Self-Detection for Zhipu AI (GLM-5.2)
+# Black-Box Detection of Z.AI-Generated and Modified Academic Abstracts Against Human-Written Controls: Discrimination, Calibration, and Repeatability of GLM-5.2 Verbalized Confidence
 
 **Black-Box Detection of Z.AI-Generated and Modified Academic Abstracts Against Human-Written Controls: Discrimination, Calibration, and Repeatability of GLM-5.2 Verbalized Confidence**
 
