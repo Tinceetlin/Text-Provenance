@@ -138,7 +138,7 @@ No immutable model snapshot or build identifier was recorded, so results reflect
 ## Repository structure
 
 ```text
-Zhipu_AI_Self-Detector/
+Text-Provenance/
 ├── Prompt_engineering/   # Prompts for Generate, Rewrite, Paraphrase, and provenance classification
 ├── dataset/              # Human control abstracts, Z.AI variants, and classification results
 ├── statistical_test/     # Statistical analyses (calibration, bootstrap, Cochran's Q, McNemar, Friedman)
@@ -174,7 +174,7 @@ If you use this repository, please cite it as:
   year         = {2026},
   version      = {1.0.0},
   howpublished = {GitHub},
-  url          = {https://github.com/Tinceetlin/Zhipu_AI_Self-Detector}
+  url          = {https://github.com/Tinceetlin/Text-Provenance}
 }
 ```
 
